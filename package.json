@@ -1,0 +1,14 @@
+{
+  "type": "module",
+  "scripts": {
+    "dev": "dotenvx run -- tsx ./src/index.ts"
+  },
+  "dependencies": {
+    "@dotenvx/dotenvx": "^1.26.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
