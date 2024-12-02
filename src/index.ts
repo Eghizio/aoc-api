@@ -1,5 +1,5 @@
 import { Config } from "./Config";
-import { AocClient } from "./AocClient";
+import { AocClient } from "./lib/AocClient";
 
 /* TODO: Add logger. */
 const aoc = new AocClient(new Config().AOC_SESSION_COOKIE);
