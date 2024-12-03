@@ -28,6 +28,7 @@ export class HttpClient {
   async get(endpoint: string, headers?: Headers) {
     if (this.cache.has(endpoint)) return this.cache.get(endpoint);
 
+    console.log(`Fetching: ${endpoint}`);
     const value = await this.request(endpoint, "GET", undefined, headers);
 
     this.cache.set(endpoint, value);

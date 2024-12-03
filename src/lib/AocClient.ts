@@ -1,4 +1,6 @@
 import { HttpClient } from "./HttpClient";
+import { Cache } from "./Cache";
+import { FileSerializer } from "./FileSerializer";
 
 export const BASE_URL = "https://adventofcode.com";
 
@@ -11,6 +13,7 @@ export class AocClient {
         Cookie: `session=${sessionCookie}`,
         "User-Agent": userAgent ?? "github.com/Eghizio/aoc-api",
       },
+      cache: new Cache({ fileSerializer: new FileSerializer("_cache") }),
     });
   }
 

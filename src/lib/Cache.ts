@@ -1,3 +1,5 @@
+import type { FileSerializer } from "./FileSerializer";
+
 export const FIFTEEN_MINUTES_ms = 15 * 60 * 1000;
 
 /**
@@ -13,12 +15,32 @@ type CacheEntry = {
 export class Cache {
   private cache: Map<string, CacheEntry> = new Map();
   private defaultTtl: number;
+  private fileSerializer?: FileSerializer;
 
   /**
    * @param {number} [defaultTtl=FIFTEEN_MINUTES_ms] - Default time to live for cached items in milliseconds. 0 means Infinite.
    * */
-  constructor(defaultTtl: CacheEntry["ttl"] = FIFTEEN_MINUTES_ms) {
-    this.defaultTtl = defaultTtl;
+  constructor(
+    {
+      defaultTtl,
+      fileSerializer,
+    }: {
+      defaultTtl?: CacheEntry["ttl"];
+      fileSerializer?: FileSerializer;
+    } = { defaultTtl: FIFTEEN_MINUTES_ms, fileSerializer: undefined }
+  ) {
+    this.defaultTtl = defaultTtl ?? FIFTEEN_MINUTES_ms;
+    this.fileSerializer = fileSerializer;
+
+    this.deserializeCacheFromFile()
+      .then((persistedCache) => {
+        this.cache = persistedCache ? new Map(persistedCache) : new Map();
+      })
+      .catch((error) => {
+        console.warn("Failed to retrieve cache state from file.", error);
+        this.cache = new Map();
+      })
+      .finally(() => this.flushExpired());
   }
 
   has(key: string): boolean {
@@ -35,6 +57,7 @@ export class Cache {
    * */
   set<T>(key: string, value: T, ttl?: CacheEntry["ttl"]): void {
     this.cache.set(key, { value, ttl: ttl ?? this.defaultTtl });
+    this.serializeCacheToFile();
   }
 
   delete(key: string) {
@@ -61,5 +84,53 @@ export class Cache {
     });
 
     expiredKeys.forEach((key) => this.cache.delete(key));
+
+    this.serializeCacheToFile();
+  }
+
+  private serializeCacheToFile() {
+    if (!this.fileSerializer) {
+      const msg = "No file serializer provided. Skipping cache serialization.";
+      console.warn(msg);
+      return;
+    }
+
+    const data = Object.fromEntries(this.cache.entries());
+
+    const serialized = this.fileSerializer.serialize(data);
+    this.fileSerializer.saveToFile(serialized, (timestamp, uuid) => {
+      return `cache_${timestamp}.json`;
+    });
+  }
+
+  private async deserializeCacheFromFile() {
+    if (!this.fileSerializer) {
+      const msg =
+        "No file serializer provided. Skipping cache deserialization.";
+      console.warn(msg);
+      return;
+    }
+
+    const cacheFileName = await this.findLatestCacheFile();
+    if (!cacheFileName) throw new Error("No cache file found.");
+
+    const serializedCache = await this.fileSerializer.retrieveFromFile(
+      cacheFileName
+    );
+
+    if (!serializedCache) {
+      throw new Error(`Failed to retrieve cache data from "${cacheFileName}"`);
+    }
+
+    const data = this.fileSerializer.deserialize<{}>(serializedCache);
+
+    return Object.entries(data);
+  }
+
+  private async findLatestCacheFile(): Promise<string | null> {
+    const exp = new RegExp(/cache_\d+\.json$/);
+    const fileName = await this?.fileSerializer?.findFileName(exp);
+
+    return fileName ?? null;
   }
 }
