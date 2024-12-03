@@ -1,4 +1,5 @@
 import { Cache } from "./Cache";
+import { Logger } from "./Logger";
 
 type Options = RequestInit;
 type HttpMethod = Options["method"];
@@ -10,6 +11,7 @@ export class HttpClient {
   private readonly defaultHeaders: Headers;
   private readonly defaultOptions: Options;
   private cache: Cache;
+  private logger: Logger;
 
   constructor(
     baseURL: string,
@@ -17,17 +19,20 @@ export class HttpClient {
       headers,
       options,
       cache,
-    }: { headers?: Headers; options?: Options; cache?: Cache }
+    }: { headers?: Headers; options?: Options; cache?: Cache },
+    logger = new Logger()
   ) {
     this.baseURL = baseURL;
     this.defaultHeaders = headers ?? {};
     this.defaultOptions = options ?? {};
-    this.cache = cache ?? new Cache();
+    this.cache = cache ?? new Cache({ logger });
+    this.logger = logger;
   }
 
   async get(endpoint: string, headers?: Headers) {
     if (this.cache.has(endpoint)) return this.cache.get(endpoint);
 
+    this.logger.info(`Fetching ${endpoint}`);
     const value = await this.request(endpoint, "GET", undefined, headers);
 
     this.cache.set(endpoint, value);
